@@ -408,6 +408,7 @@ class EtaLog(Base):
     source: Mapped[str] = mapped_column(String(16), nullable=False)
     predicted_p50_s: Mapped[float | None] = mapped_column(Float)
     predicted_p80_s: Mapped[float | None] = mapped_column(Float)
+    base_s: Mapped[float | None] = mapped_column(Float)
     actual_s: Mapped[float] = mapped_column(Float, nullable=False)
     residual_ratio: Mapped[float] = mapped_column(Float, nullable=False)
     covered_p80: Mapped[bool | None] = mapped_column(Boolean)

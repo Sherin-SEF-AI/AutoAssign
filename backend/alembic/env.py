@@ -22,6 +22,13 @@ def _url() -> str:
     return url
 
 
+def include_object(obj: object, name: str | None, type_: str, reflected: bool, compare_to: object) -> bool:
+    # Ping partitions are managed at runtime, not by the ORM metadata.
+    if type_ == "table" and name is not None and name.startswith("ping_") and reflected:
+        return False
+    return not (type_ == "index" and name is not None and name.startswith("ping_") and reflected)
+
+
 def run_migrations_offline() -> None:
     context.configure(url=_url(), target_metadata=target_metadata, literal_binds=True)
     with context.begin_transaction():
@@ -29,7 +36,12 @@ def run_migrations_offline() -> None:
 
 
 def _do_run(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        compare_type=True,
+        include_object=include_object,
+    )
     with context.begin_transaction():
         context.run_migrations()
 

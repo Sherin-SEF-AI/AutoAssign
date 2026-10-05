@@ -136,6 +136,7 @@ class Settings(BaseSettings):
     )
     e_roll_json: Annotated[dict[str, float], NoDecode] = Field(default_factory=lambda: dict(DEFAULT_E_ROLL))
     handling_s: int = Field(default=240, ge=0)
+    package_km_per_hour: float = Field(default=12.0, ge=0)
 
     # Monitoring and repair
     risk_threshold_s: int = Field(default=600, ge=0)
