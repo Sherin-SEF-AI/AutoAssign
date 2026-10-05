@@ -383,6 +383,7 @@ async def repair(
             "unassigned": [str(t) for t in unassigned],
             "moved_trips": [str(t) for t in moved],
             "duration_s": round(time.perf_counter() - started, 2),
+            "at": req.now.isoformat() if req.now else None,
         },
     )
     session.add(event)
@@ -413,6 +414,7 @@ async def _no_repair(
             "reason": req.reason,
             "error": error,
             "duration_s": round(time.perf_counter() - started, 2),
+            "at": req.now.isoformat() if req.now else None,
         },
     )
     session.add(event)

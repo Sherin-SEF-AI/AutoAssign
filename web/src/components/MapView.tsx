@@ -61,9 +61,16 @@ function prepareStyle(raw: Record<string, unknown> | undefined): { style: StyleS
   const meta = isRecord(raw.metadata) ? raw.metadata : {};
   const here = isRecord(raw.sources.here) ? raw.sources.here : {};
   const attribution = typeof here.attribution === "string" ? here.attribution : typeof meta.attribution === "string" ? meta.attribution : fallbackAttr;
+  const hereEnabled = meta.here_enabled !== false;
+  let layers = raw.layers as unknown[];
+  if (!hereEnabled) {
+    // No tile requests while HERE is off: keep the background and our own overlays only.
+    delete sources.here;
+    layers = layers.filter((l) => !(isRecord(l) && l.source === "here"));
+  }
   return {
-    style: { ...(raw as unknown as StyleSpecification), sources: sources as StyleSpecification["sources"] },
-    hereEnabled: meta.here_enabled !== false,
+    style: { ...(raw as unknown as StyleSpecification), sources: sources as StyleSpecification["sources"], layers: layers as StyleSpecification["layers"] },
+    hereEnabled,
     attribution,
   };
 }
@@ -248,7 +255,8 @@ export default function MapView({ lanes, unassigned, selectedDriverId, onSelectD
 
   return (
     <div className="relative h-full min-h-[320px] w-full overflow-hidden rounded border border-neutral-200 bg-[#eef0f2]">
-      <div ref={containerRef} className="absolute inset-0" />
+      {/* Inline position: maplibre-gl.css sets .maplibregl-map to relative and would collapse this box. */}
+      <div ref={containerRef} style={{ position: "absolute", inset: 0 }} />
       {prepared && !prepared.hereEnabled && (
         <div className="absolute left-2 top-2 z-[1] rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-800">HERE tiles unavailable</div>
       )}

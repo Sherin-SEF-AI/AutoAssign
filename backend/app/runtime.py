@@ -24,7 +24,14 @@ async def create_context(
 ) -> AppContext:
     engine = make_engine(settings.database_url, pool_size=pool_size)
     factory = make_session_factory(engine)
-    redis = Redis.from_url(settings.redis_url, decode_responses=False)
+    # Socket timeout longer than any blocking command (the event consumer blocks for up to 5 s).
+    redis = Redis.from_url(
+        settings.redis_url,
+        decode_responses=False,
+        socket_timeout=30,
+        socket_connect_timeout=5,
+        health_check_interval=30,
+    )
     http = httpx.AsyncClient(timeout=settings.http_timeout_s)
     the_clock = clock or SimAwareClock(redis)
     source = build_datasource(settings, _today_wall, redis)

@@ -4,17 +4,20 @@ from __future__ import annotations
 
 import asyncio
 import signal
-from datetime import date, datetime, time
+from datetime import UTC, date, datetime, time
 from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from prometheus_client import start_http_server
+from sqlalchemy import select
 
 from app.config import get_settings
 from app.core.clock import load_sim_state
 from app.core.logging import configure_logging, get_logger
 from app.core.timeutil import IST, service_date_of, to_ist
+from app.db.models import JobRun
+from app.db.session import session_scope
 from app.jobs.context import AppContext
 from app.jobs.late_booking import drain_queue
 from app.jobs.registry import REGISTRY, resolve_date
@@ -96,7 +99,28 @@ class Worker:
                 log.exception("event_consumer_error", error=str(exc))
                 await asyncio.sleep(2)
 
+    async def mark_abandoned(self) -> int:
+        """Runs left 'running' by a process that died: their Redis job lock is gone."""
+        async with session_scope(self.ctx.factory) as session:
+            rows = (await session.execute(select(JobRun).where(JobRun.status == "running"))).scalars().all()
+            closed = 0
+            for row in rows:
+                lock = (
+                    f"lock:job:{row.job_name}:{row.service_date}"
+                    if row.service_date
+                    else f"lock:job:{row.job_name}"
+                )
+                if not await self.ctx.redis.exists(lock):
+                    row.status = "failed"
+                    row.error = "abandoned: the process running it stopped"
+                    row.finished_at = datetime.now(UTC)
+                    closed += 1
+        return closed
+
     async def start(self) -> None:
+        abandoned = await self.mark_abandoned()
+        if abandoned:
+            log.warning("job_runs_abandoned", count=abandoned)
         for name, cron in SCHEDULE:
             self.scheduler.add_job(
                 self.run_named,

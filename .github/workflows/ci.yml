@@ -52,10 +52,15 @@ jobs:
           pytest -q --cov=app --cov-report=term-missing:skip-covered --cov-report=xml
       - name: Coverage gate (eta, graph, solver, plan >= 85%)
         run: python -m app.tools.coverage_gate coverage.xml
-      - name: OpenAPI is current
+      - name: OpenAPI and upstream contract are current
         run: |
           python -m app.export_openapi /tmp/openapi.json
           diff -q /tmp/openapi.json ../web/src/api/openapi.json
+          python -m app.tools.contract /tmp/datasource.openapi.yaml
+          diff -q /tmp/datasource.openapi.yaml ../contracts/datasource.openapi.yaml
+      - name: No em-dashes in code, docs or UI copy
+        run: "! grep -rIl $'\\u2014' ../backend/app ../web/src ../docs ../contracts ../README.md"
+
 
   web:
     runs-on: ubuntu-latest

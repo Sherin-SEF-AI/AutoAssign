@@ -269,7 +269,7 @@ export default function LivePage() {
 }
 
 function RepairFeed({ repairs, loading, error, date }: { repairs: Repair[]; loading: boolean; error: unknown; date: string }) {
-  const sorted = [...repairs].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const sorted = [...repairs].sort((a, b) => b.created_at.localeCompare(a.created_at)); // newest first; shown at simulated time when present
   return (
     <Section title={<>Repairs <span className="font-normal text-neutral-500">({repairs.length})</span></>}>
       {!!error && <ErrorBanner error={error} />}
@@ -279,7 +279,7 @@ function RepairFeed({ repairs, loading, error, date }: { repairs: Repair[]; load
         <ul className="divide-y divide-neutral-100">
           {sorted.map((r) => (
             <li key={r.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 px-2 py-1">
-              <span className="font-mono text-neutral-500">{fmtTime(r.created_at)}</span>
+              <span className="font-mono text-neutral-500">{fmtTime(typeof r.details?.at === "string" ? r.details.at : r.created_at)}</span>
               <span className="font-medium">{r.trigger.replace(/_/g, " ")}</span>
               <span className={r.outcome === "no_feasible_repair" ? "font-semibold text-red-700" : "text-emerald-700"}>{r.outcome.replace(/_/g, " ")}</span>
               <span className="text-neutral-500">{r.trip_ids.length} trips</span>

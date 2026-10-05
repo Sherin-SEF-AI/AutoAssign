@@ -69,8 +69,8 @@ async def run(ctx: AppContext, stop: asyncio.Event) -> None:
         day = date.fromisoformat(state.service_date)
         try:
             if engine is None or engine.day != day:
+                # Live state is only cleared by an explicit reset, so a process restart resumes.
                 await ensure_published(ctx, day)
-                await clear_run(ctx, day)
                 engine = SimEngine(
                     ctx,
                     day,
