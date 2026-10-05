@@ -104,7 +104,12 @@ async def trip_nodes(
     day0 = day_start_utc(service_date)
     road = [t for t in trips if t.trip_type != "package"]
     ests = await estimator.estimate_many(
-        [LegRequest(Point(t.pickup_lat, t.pickup_lng), Point(t.drop_lat, t.drop_lng), t.scheduled_pickup_at) for t in road],
+        [
+            LegRequest(
+                Point(t.pickup_lat, t.pickup_lng), Point(t.drop_lat, t.drop_lng), t.scheduled_pickup_at
+            )
+            for t in road
+        ],
         "trip",
     )
     by_trip = {t.trip_id: e for t, e in zip(road, ests, strict=True)}
@@ -238,13 +243,18 @@ async def build_graph(
         "hub",
     )
     ends = await estimator.estimate_many(
-        [LegRequest(nodes[n].drop, vehicles[v].end, day0 + timedelta(seconds=nodes[n].end_s)) for n, v in end_req],
+        [
+            LegRequest(nodes[n].drop, vehicles[v].end, day0 + timedelta(seconds=nodes[n].end_s))
+            for n, v in end_req
+        ],
         "hub",
     )
     for (v_idx, n_idx), e in zip(start_req, starts, strict=True):
         p50, p80, p90, m = e.as_ints()
         sources[e.source] += 1
-        buf = buffer_s(settings, policy, trip_p50=0, trip_p80=0, trip_p90=0, leg_p50=p50, leg_p80=p80, leg_p90=p90)
+        buf = buffer_s(
+            settings, policy, trip_p50=0, trip_p80=0, trip_p90=0, leg_p50=p50, leg_p80=p80, leg_p90=p90
+        )
         q = p90 if quantile == "p90" else p80
         if vehicles[v_idx].origin_s + q + buf <= nodes[n_idx].pickup_s:
             graph.start_legs[(v_idx, n_idx)] = HubLeg(p50, q, p90, m, e.source, buf)

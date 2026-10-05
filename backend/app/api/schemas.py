@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -121,6 +121,6 @@ class JobRunOut(ORM):
     service_date: date | None
     started_at: datetime
     finished_at: datetime | None
-    status: str
+    status: Literal["queued", "running", "succeeded", "failed", "skipped"]
     stats: dict[str, Any]
     error: str | None

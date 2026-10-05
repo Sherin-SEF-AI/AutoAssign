@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import Depends, Header, Request
+from fastapi import Depends, Request
+from fastapi.security import APIKeyHeader, APIKeyQuery, HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.security import Principal, check_service_key, decode_token
@@ -42,19 +43,24 @@ async def get_settings_dep(ctx: Ctx, session: Session) -> Settings:
 EffectiveSettings = Annotated[Settings, Depends(get_settings_dep)]
 
 
-def _bearer(authorization: str | None) -> str:
-    if not authorization or not authorization.lower().startswith("bearer "):
-        raise Unauthorized("missing bearer token", code="missing_token")
-    return authorization.split(" ", 1)[1].strip()
+bearer_scheme = HTTPBearer(auto_error=False, description="JWT from POST /auth/login")
+# EventSource and map tile requests cannot set headers, so the token may come as a query parameter.
+token_query_scheme = APIKeyQuery(name="token", auto_error=False, description="JWT for SSE and map tiles")
+service_key_scheme = APIKeyHeader(name="X-API-Key", auto_error=False, description="Service to service key")
 
 
 async def current_user(
-    ctx: Ctx, authorization: Annotated[str | None, Header()] = None, token: str | None = None
+    ctx: Ctx,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    token: Annotated[str | None, Depends(token_query_scheme)],
 ) -> Principal:
-    # The token query parameter exists for EventSource and map tile requests, which cannot set headers.
-    raw = token if token and not authorization else _bearer(authorization)
-    principal = decode_token(ctx.base_settings, raw)
-    return principal
+    if credentials is not None and credentials.credentials:
+        raw = credentials.credentials
+    elif token:
+        raw = token
+    else:
+        raise Unauthorized("missing bearer token", code="missing_token")
+    return decode_token(ctx.base_settings, raw)
 
 
 User = Annotated[Principal, Depends(current_user)]
@@ -69,7 +75,7 @@ async def require_admin(user: User) -> Principal:
 Admin = Annotated[Principal, Depends(require_admin)]
 
 
-async def service_key(ctx: Ctx, x_api_key: Annotated[str | None, Header()] = None) -> Principal:
+async def service_key(ctx: Ctx, x_api_key: Annotated[str | None, Depends(service_key_scheme)]) -> Principal:
     return check_service_key(ctx.base_settings, x_api_key)
 
 

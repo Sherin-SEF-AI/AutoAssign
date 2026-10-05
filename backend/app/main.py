@@ -15,6 +15,7 @@ from fastapi.routing import APIRoute
 
 from app.api import problem
 from app.api.routers import admin, auth, drivers, events, health, jobs, trips, vehicles
+from app.api.routers import settings as settings_router
 from app.api.security import ensure_admin
 from app.config import Settings, get_settings
 from app.core.logging import configure_logging, get_logger
@@ -101,8 +102,8 @@ def create_app(settings: Settings | None = None, ctx: AppContext | None = None) 
                 )
             return response
 
-    api = APIRouter(prefix=API_PREFIX)
-    for module in (auth, trips, drivers, vehicles, jobs, admin, events):
+    api = APIRouter(prefix=API_PREFIX, responses=problem.PROBLEM_RESPONSES)
+    for module in (auth, trips, drivers, vehicles, jobs, admin, events, settings_router):
         api.include_router(module.router)
     app.include_router(api)
     app.include_router(health.router)

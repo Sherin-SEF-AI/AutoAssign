@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-import xml.etree.ElementTree as ET  # noqa: S405 - parses our own coverage report
+import xml.etree.ElementTree as ET
 
 PACKAGES = ("app/eta", "app/graph", "app/solver", "app/plan")
 TARGET = 0.85

@@ -54,7 +54,11 @@ class FactorTable:
         keys: list[tuple[str, int | None, str | None, int | None]] = []
         if cluster is not None:
             keys.append((basis, time_bin, weekday_type, cluster))
-        keys += [(basis, time_bin, weekday_type, None), (basis, time_bin, None, None), (basis, None, None, None)]
+        keys += [
+            (basis, time_bin, weekday_type, None),
+            (basis, time_bin, None, None),
+            (basis, None, None, None),
+        ]
         for key in keys:
             hit = self.rows.get(key)
             if hit is not None:
@@ -65,7 +69,9 @@ class FactorTable:
 def default_factors(settings: Settings) -> dict[str, dict[int, Factors]]:
     profile = settings.speed_profile_json
     free = free_flow_kmh(profile)
-    base = Factors(settings.factor_r50_default, settings.factor_r80_default, settings.factor_r90_default, "default")
+    base = Factors(
+        settings.factor_r50_default, settings.factor_r80_default, settings.factor_r90_default, "default"
+    )
     out: dict[str, dict[int, Factors]] = {"here": {}, "fallback": {}, "osrm": {}}
     for i, b in enumerate(profile):
         out["here"][i] = base
@@ -95,12 +101,16 @@ async def load_factor_table(session: AsyncSession, settings: Settings) -> Factor
             )
         table.calibration_id = str(latest)
     cluster_cal = (
-        await session.execute(select(ZoneCluster.calibration_id).order_by(ZoneCluster.created_at.desc()).limit(1))
+        await session.execute(
+            select(ZoneCluster.calibration_id).order_by(ZoneCluster.created_at.desc()).limit(1)
+        )
     ).scalar_one_or_none()
     if cluster_cal is not None:
         clusters = (
             await session.execute(
-                select(ZoneCluster).where(ZoneCluster.calibration_id == cluster_cal).order_by(ZoneCluster.cluster_id)
+                select(ZoneCluster)
+                .where(ZoneCluster.calibration_id == cluster_cal)
+                .order_by(ZoneCluster.cluster_id)
             )
         ).scalars()
         table.centroids = [(c.cluster_id, Point(c.lat, c.lng)) for c in clusters]

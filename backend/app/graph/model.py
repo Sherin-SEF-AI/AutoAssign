@@ -70,7 +70,11 @@ class VehicleCtx:
 
     @property
     def origin_s(self) -> int:
-        return self.shift_start_s if self.available_from_s is None else max(self.shift_start_s, self.available_from_s)
+        return (
+            self.shift_start_s
+            if self.available_from_s is None
+            else max(self.shift_start_s, self.available_from_s)
+        )
 
     def eligible(self, node: TripNode) -> bool:
         if node.vehicle_class == "suv" and self.vehicle_class != "suv":

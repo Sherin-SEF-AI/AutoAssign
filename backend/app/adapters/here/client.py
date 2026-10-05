@@ -205,7 +205,9 @@ class HereClient:
             if result_url:
                 result = await call_with_retries(
                     "here_matrix",
-                    lambda: self.client.get(result_url, params={"apiKey": self.api_key}, timeout=self.timeout),
+                    lambda url=result_url: self.client.get(  # type: ignore[misc]
+                        url, params={"apiKey": self.api_key}, timeout=self.timeout
+                    ),
                     retries=self.retries,
                     backoff_base_s=self.backoff_base_s,
                     sleep=self.sleep,
@@ -221,7 +223,9 @@ class HereClient:
             dists = matrix.get("distances")
             errors = matrix.get("errorCodes")
             if int(matrix["numOrigins"]) != n_o or int(matrix["numDestinations"]) != n_d:
-                raise ProviderError("here_matrix", "matrix dimensions do not match the request", retryable=False)
+                raise ProviderError(
+                    "here_matrix", "matrix dimensions do not match the request", retryable=False
+                )
         except (KeyError, TypeError, ValueError) as exc:
             raise ProviderError("here_matrix", f"unexpected response shape: {exc}", retryable=False) from exc
         ref = str(payload.get("matrixId", "")) or None

@@ -1,0 +1,17 @@
+{
+  "routes": [
+    {
+      "id": "8a1b6a9f-55d2-4f0e-9d6b-1c7f2c4e1a01",
+      "sections": [
+        {
+          "id": "b5d0f6c4-2e0f-4a37-9a1b-6f8e3d2c1b00",
+          "type": "vehicle",
+          "departure": {"time": "2026-10-06T09:00:00+05:30", "place": {"type": "place", "location": {"lat": 12.9352, "lng": 77.6245}}},
+          "arrival": {"time": "2026-10-06T10:02:41+05:30", "place": {"type": "place", "location": {"lat": 12.985, "lng": 77.734}}},
+          "summary": {"duration": 3761, "length": 18432, "baseDuration": 1934, "typicalDuration": 3420},
+          "transport": {"mode": "car"}
+        }
+      ]
+    }
+  ]
+}

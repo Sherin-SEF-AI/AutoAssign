@@ -31,7 +31,8 @@ class CacheKey:
     service_date: date
 
     def redis_key(self) -> str:
-        return f"eta:hot:{self.kind}:{self.origin_h3}:{self.dest_h3}:{self.depart_bin}:{self.service_date.isoformat()}"
+        day = self.service_date.isoformat()
+        return f"eta:hot:{self.kind}:{self.origin_h3}:{self.dest_h3}:{self.depart_bin}:{day}"
 
 
 def cache_key(kind: str, req: LegRequest) -> CacheKey:

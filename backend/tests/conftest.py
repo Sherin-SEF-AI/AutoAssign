@@ -28,6 +28,7 @@ _load_env_file(ROOT / ".env.test")
 os.environ.setdefault("ENVIRONMENT", "test")
 # Never touch a real HERE account from tests: HERE calls are replayed through respx fixtures.
 os.environ["HERE_API_KEY"] = "test-here-key"
+os.environ["HERE_ENABLED"] = "false"  # tests that exercise HERE build clients against respx explicitly
 os.environ.pop("OSRM_URL", None)
 
 
@@ -72,11 +73,17 @@ async def ctx(settings, migrated_db) -> AsyncIterator[object]:  # type: ignore[n
 @pytest.fixture
 async def clean(ctx) -> AsyncIterator[object]:  # type: ignore[no-untyped-def]
     """Empty operational tables and Redis before a test."""
+    from sqlalchemy import text
+
     from app.db.maintenance import reset_dataset
     from app.db.session import session_scope
 
     async with session_scope(ctx.factory) as session:
         await reset_dataset(session)
+        await session.execute(text("TRUNCATE setting_override, setting_audit, job_run, fleet_exception"))
+        await session.execute(
+            text("DELETE FROM app_user WHERE email <> :e"), {"e": ctx.base_settings.admin_email}
+        )
     await ctx.redis.flushdb()
     ctx.settings_cache.invalidate()
     yield ctx

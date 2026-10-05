@@ -148,7 +148,9 @@ class LegEstimator:
 
     # Quantiles --------------------------------------------------------------------
 
-    def apply_factors(self, raw: RawLeg, kind: str, origin: Point, dest: Point, depart_at: datetime) -> LegEstimate:
+    def apply_factors(
+        self, raw: RawLeg, kind: str, origin: Point, dest: Point, depart_at: datetime
+    ) -> LegEstimate:
         basis = raw.source if raw.source in ("here", "osrm") else "fallback"
         base = raw.free_flow_s if raw.source == "osrm" and raw.free_flow_s is not None else raw.duration_s
         if kind == "trip":
@@ -159,7 +161,9 @@ class LegEstimator:
         r50 = f.r50
         r80 = max(f.r80, r50)
         r90 = max(f.r90, r80)
-        distance = raw.distance_m if raw.distance_m > 0 else haversine_m(origin, dest) * self.settings.circuity
+        distance = (
+            raw.distance_m if raw.distance_m > 0 else haversine_m(origin, dest) * self.settings.circuity
+        )
         return LegEstimate(
             p50_s=base * r50,
             p80_s=base * r80,
@@ -423,7 +427,10 @@ class LegEstimator:
                 ETA_REQUESTS.labels(provider="osrm", outcome="error").inc()
                 log.warning("osrm_route_failed", error=str(exc))
                 return out
-            out[key] = (self.apply_factors(raw, kind, req.origin, req.dest, req.depart_at), {"origin": req.origin, "dest": req.dest})
+            out[key] = (
+                self.apply_factors(raw, kind, req.origin, req.dest, req.depart_at),
+                {"origin": req.origin, "dest": req.dest},
+            )
             ETA_REQUESTS.labels(provider="osrm", outcome="ok").inc()
             return out
         for depart, blocks in _matrix_blocks(pending, MAX_TABLE_SIDE):
@@ -451,8 +458,8 @@ class LegEstimator:
         kind: str,
         out: dict[CacheKey, tuple[LegEstimate, dict[str, Any]]],
     ) -> None:
-        for i, (o_h3, o_pt) in enumerate(origins):
-            for j, (d_h3, d_pt) in enumerate(dests):
+        for i, (o_h3, _o_pt) in enumerate(origins):
+            for j, (d_h3, _d_pt) in enumerate(dests):
                 raw = grid[i][j] if i < len(grid) and j < len(grid[i]) else None
                 if raw is None:
                     continue

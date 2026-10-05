@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.base import Channel, TripStatus, TripType, VehicleClass
 from app.db.queries import (
     current_plan,
     drivers_in_snapshot,
@@ -24,7 +25,7 @@ class TripRow(BaseModel):
 
     trip_id: uuid.UUID
     service_date: date
-    channel: str
+    channel: Channel
     scheduled_pickup_at: datetime
     pickup_lat: float
     pickup_lng: float
@@ -32,14 +33,14 @@ class TripRow(BaseModel):
     drop_lat: float
     drop_lng: float
     drop_address: str
-    trip_type: str
+    trip_type: TripType
     package_hours: float | None
     pax: int
     luggage: int
-    vehicle_class: str
+    vehicle_class: VehicleClass
     tags: dict[str, Any]
     account_id: str | None
-    status: str
+    status: TripStatus
     actual_pickup_at: datetime | None
     actual_drop_at: datetime | None
     actual_distance_m: float | None

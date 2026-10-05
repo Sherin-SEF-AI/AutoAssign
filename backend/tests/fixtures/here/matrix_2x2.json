@@ -1,0 +1,11 @@
+{
+  "matrixId": "c0ffee00-1234-4abc-9def-000000000001",
+  "matrix": {
+    "numOrigins": 2,
+    "numDestinations": 2,
+    "travelTimes": [612, 1844, 1530, 0],
+    "distances": [3120, 11870, 9930, 0],
+    "errorCodes": [0, 0, 0, 3]
+  },
+  "regionDefinition": {"type": "circle", "center": {"lat": 12.97, "lng": 77.59}, "radius": 60000}
+}

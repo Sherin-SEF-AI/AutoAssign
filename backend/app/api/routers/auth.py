@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
@@ -21,14 +22,14 @@ class LoginIn(BaseModel):
 class LoginOut(BaseModel):
     access_token: str
     token_type: str = "bearer"  # noqa: S105
-    role: str
+    role: Literal["ops", "admin"]
     email: str
     expires_at: datetime
 
 
 class MeOut(BaseModel):
     email: str
-    role: str
+    role: Literal["ops", "admin"]
 
 
 @router.post("/login", response_model=LoginOut)
