@@ -1,0 +1,109 @@
+# Profiles: core (default services, no profile needed), osrm, sim.
+#   docker compose up                      -> postgres, redis, migrate, api, worker, web
+#   docker compose --profile sim up        -> plus the day simulator
+#   docker compose --profile osrm up       -> plus OSRM (run `make osrm-data` once first)
+name: blurabbit-dispatch
+
+x-backend: &backend
+  build: ./backend
+  image: blurabbit-dispatch-backend:local
+  env_file: .env
+  environment:
+    DATABASE_URL: postgresql+asyncpg://dispatch:${POSTGRES_PASSWORD:-dispatch}@postgres:5432/dispatch
+    REDIS_URL: redis://redis:6379/0
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: dispatch
+      POSTGRES_USER: dispatch
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dispatch}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dispatch -d dispatch"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    <<: *backend
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+
+  api:
+    <<: *backend
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz').status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  worker:
+    <<: *backend
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "9100:9100"
+    volumes:
+      - ./docs:/app/reports
+
+  web:
+    build: ./web
+    image: blurabbit-dispatch-web:local
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+
+  sim:
+    <<: *backend
+    profiles: ["sim"]
+    command: ["python", "-m", "app.sim"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:v5.27.1
+    profiles: ["osrm"]
+    command: ["osrm-routed", "--algorithm", "mld", "/data/southern-zone-latest.osrm"]
+    volumes:
+      - ./osrm-data:/data
+    ports:
+      - "5000:5000"
+
+volumes:
+  pgdata:
+  redisdata:
