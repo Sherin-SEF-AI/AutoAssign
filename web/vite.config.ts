@@ -13,6 +13,7 @@ export default defineConfig({
       "/readyz": { target, changeOrigin: true },
     },
   },
+  worker: { format: "es" },
   build: {
     sourcemap: true,
     chunkSizeWarningLimit: 1500,

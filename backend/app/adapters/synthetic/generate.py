@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 import random
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, time, timedelta
 from functools import cached_property
@@ -50,6 +51,8 @@ AIRPORT_SKILL_SHARE = 0.60
 SERVICE_DAY_SHARE = 0.10
 LOW_SOC_SHARE = 0.10
 UBER_DAY_SHARE = 0.50
+ETS_HOME_SCALE_KM = 6.0
+CITY_DROP_SCALE_KM = 6.0
 
 
 def _rng(*parts: object) -> random.Random:
@@ -65,6 +68,13 @@ def _haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     dp, dl = p2 - p1, math.radians(lng2 - lng1)
     h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
     return 2 * EARTH_R * math.asin(min(1.0, math.sqrt(h)))
+
+
+def _near(rng: random.Random, origin: Zone, candidates: Sequence[Zone], scale_km: float) -> Zone:
+    """Gravity choice: weight candidates by exp(-distance / scale)."""
+    pool = [z for z in candidates if z.name != origin.name]
+    weights = [math.exp(-_haversine_m(origin.lat, origin.lng, z.lat, z.lng) / 1000 / scale_km) for z in pool]
+    return rng.choices(pool, weights=weights)[0]
 
 
 def _poisson(rng: random.Random, lam: float) -> int:
@@ -192,6 +202,9 @@ class SyntheticWorld:
                 approvals[i].append(account)
         names: set[str] = set()
         out: list[DriverProfile] = []
+        # Shuffle the fixed driver and vehicle pairing so every shift gets a mix of classes.
+        pairing = list(range(n))
+        rng.shuffle(pairing)
         for i in range(n):
             while True:
                 name = f"{rng.choice(P.FIRST_NAMES)} {rng.choice(P.LAST_NAMES)}"
@@ -207,7 +220,7 @@ class SyntheticWorld:
                     home=home,
                     shift_pattern=P.SHIFT_PATTERNS_IST[i * len(P.SHIFT_PATTERNS_IST) // n],
                     airport_skill=i in skilled,
-                    vehicle_id=self.vehicle_profiles[i].vehicle_id,
+                    vehicle_id=self.vehicle_profiles[pairing[i]].vehicle_id,
                     approved_accounts=tuple(sorted(approvals[i])),
                 )
             )
@@ -223,12 +236,13 @@ class SyntheticWorld:
                 minute = 7 * 60 + 15 * rng.randint(0, 12)
             else:
                 minute = 17 * 60 + 30 + 15 * rng.randint(0, 12)
+            office_zone = rng.choice(TECH_PARKS)
             out.append(
                 EtsSeries(
                     series_id=s,
                     client=P.ETS_CLIENTS[s % len(P.ETS_CLIENTS)],
-                    home=_jitter(rng, rng.choice(RESIDENTIAL)),
-                    office=_jitter(rng, rng.choice(TECH_PARKS)),
+                    home=_jitter(rng, _near(rng, office_zone, RESIDENTIAL, ETS_HOME_SCALE_KM)),
+                    office=_jitter(rng, office_zone),
                     to_work=to_work,
                     minute=minute,
                 )
@@ -374,7 +388,8 @@ class SyntheticWorld:
                 minute = rng.uniform(480, 1320)
             minute = min(1320.0, max(480.0, minute))
             while True:
-                a, b = rng.sample(CITY_ZONES, 2)
+                a = rng.choice(CITY_ZONES)
+                b = _near(rng, a, CITY_ZONES, CITY_DROP_SCALE_KM)
                 pickup, drop = _jitter(rng, a), _jitter(rng, b)
                 if _haversine_m(pickup.lat, pickup.lng, drop.lat, drop.lng) >= 2000:
                     break

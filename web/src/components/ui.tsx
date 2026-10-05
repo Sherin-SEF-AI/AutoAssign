@@ -71,6 +71,10 @@ const STATUS_CLS: Record<string, string> = {
   succeeded: "bg-emerald-50 text-emerald-800 border-emerald-200",
   failed: "bg-red-50 text-red-800 border-red-200",
   skipped: "bg-amber-50 text-amber-800 border-amber-200",
+  // plans
+  draft: "bg-amber-50 text-amber-800 border-amber-200",
+  published: "bg-emerald-50 text-emerald-800 border-emerald-200",
+  superseded: "bg-neutral-100 text-neutral-500 border-neutral-300",
   // vehicles
   active: "bg-emerald-50 text-emerald-800 border-emerald-200",
   maintenance: "bg-amber-50 text-amber-800 border-amber-200",

@@ -16,6 +16,7 @@ from app.jobs.context import AppContext
 from app.jobs.registry import REGISTRY, resolve_date
 from app.jobs.runner import run_job
 from app.jobs.seed import after_dataset_load
+from app.replay.harness import run_replay_cli
 from app.runtime import close_context, create_context
 
 
@@ -71,6 +72,9 @@ async def _main(argv: list[str]) -> int:
     p_job.add_argument("--date", default=None)
     p_solve = sub.add_parser("solve", help="ingest and solve a service date")
     p_solve.add_argument("--date", default=None)
+    p_replay = sub.add_parser("replay", help="replay harness over past days")
+    p_replay.add_argument("--days", type=int, default=45)
+    p_replay.add_argument("--out", default="../docs")
     args = parser.parse_args(argv)
 
     settings = get_settings()
@@ -85,6 +89,8 @@ async def _main(argv: list[str]) -> int:
             day = args.date or (await ctx.today() + timedelta(days=1)).isoformat()
             ns = argparse.Namespace(name="solve_date", date=day)
             return await _run_job(ctx, ns)
+        if args.cmd == "replay":
+            return await run_replay_cli(ctx, days=args.days, out_dir=args.out)
         return 2
     finally:
         await close_context(ctx)

@@ -14,6 +14,11 @@ export function useServiceDate(): [string, (d: string) => void] {
           const next = new URLSearchParams(prev);
           if (isYmd(d)) next.set("date", d);
           else next.delete("date");
+          // A plan version belongs to one date: drop the selection when the date changes.
+          if (prev.get("date") !== next.get("date")) {
+            next.delete("plan");
+            next.delete("against");
+          }
           return next;
         },
         { replace: true },

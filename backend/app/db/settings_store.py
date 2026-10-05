@@ -33,6 +33,8 @@ EDITABLE: dict[str, str] = {
     "solver_time_limit_s": "thresholds",
     "incremental_time_limit_s": "thresholds",
     "solver_solution_limit": "thresholds",
+    "incremental_solution_limit": "thresholds",
+    "fairness_cost_s": "thresholds",
     "deadhead_m_weight": "thresholds",
     "p_aux_w": "thresholds",
     "here_enabled": "providers",

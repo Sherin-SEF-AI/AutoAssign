@@ -1,8 +1,9 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { clearAuth, useAuth } from "../state/auth";
-import { useSearchParam, useServiceDate } from "../state/date";
-import { useBudget, usePlans, type Budget } from "../state/queries";
+import { useServiceDate } from "../state/date";
+import { useBudget } from "../state/queries";
+import { useSelectedPlan } from "../state/plan";
 import { useSseStatus } from "../state/sse";
 import { addDays, todayIST, tomorrowIST } from "../lib/time";
 import { btnCls, inputCls } from "./ui";
@@ -17,32 +18,29 @@ export const NAV = [
   { to: "/jobs", label: "Jobs" },
 ] as const;
 
-function PlanSelector({ date }: { date: string }) {
-  const plans = usePlans(date);
-  const [plan, setPlan] = useSearchParam("plan");
-  const list = plans.data ?? [];
+function PlanSelector() {
+  const { plans, list, planId, summary, setPlanId } = useSelectedPlan();
   const disabled = plans.isError || list.length === 0;
-  const selected = list.find((p) => p.plan_id === plan) ?? list[0];
   return (
     <>
       <select
         aria-label="Plan version"
-        className={`${inputCls} w-36`}
+        className={`${inputCls} w-44`}
         disabled={disabled}
-        value={disabled ? "" : (selected?.plan_id ?? "")}
-        onChange={(e) => setPlan(e.target.value)}
+        value={disabled ? "" : (planId ?? "")}
+        onChange={(e) => setPlanId(e.target.value)}
       >
         {disabled ? (
           <option value="">{plans.isLoading ? "Loading plans" : "No plans"}</option>
         ) : (
           list.map((p) => (
             <option key={p.plan_id} value={p.plan_id}>
-              v{p.version} ({p.status})
+              v{p.version} {p.status} ({p.trigger})
             </option>
           ))
         )}
       </select>
-      <PublishChip status={disabled ? null : (selected?.status ?? null)} />
+      <PublishChip status={disabled ? null : (summary?.status ?? null)} />
     </>
   );
 }
@@ -51,33 +49,53 @@ function PublishChip({ status }: { status: string | null }) {
   const cls =
     status === "published"
       ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-      : status
+      : status === "draft"
         ? "border-amber-300 bg-amber-50 text-amber-800"
         : "border-neutral-300 bg-neutral-50 text-neutral-500";
   return (
     <span className={`whitespace-nowrap rounded border px-1.5 py-0.5 text-[11px] ${cls}`} title="Publish state">
-      {status ?? "unpublished"}
+      {status ?? "no plan"}
     </span>
   );
 }
 
-function budgetText(b: Budget): string | null {
-  const pct = typeof b.pct === "number" ? b.pct : typeof b.used === "number" && typeof b.limit === "number" && b.limit > 0 ? (b.used / b.limit) * 100 : null;
-  if (pct === null) return null;
-  return `${b.provider ? `${b.provider} ` : ""}${Math.round(pct)}%`;
-}
+const PROVIDER_LABEL: Record<string, string> = {
+  here_routing: "route",
+  here_matrix: "matrix",
+  here_matrix_elements: "elems",
+};
 
 function BudgetIndicator() {
-  const { isAdmin } = useAuth();
-  const q = useBudget(isAdmin);
-  if (!isAdmin || !q.data) return null;
-  const items = Array.isArray(q.data) ? q.data : [q.data];
-  const texts = items.map(budgetText).filter((t): t is string => !!t);
-  if (texts.length === 0) return null;
+  const q = useBudget();
+  if (!q.data) return null;
+  const b = q.data;
   return (
-    <span className="whitespace-nowrap rounded border border-neutral-300 bg-white px-1.5 py-0.5 text-[11px] text-neutral-600" title="Provider budget used">
-      Budget {texts.join(", ")}
-    </span>
+    <div className="flex flex-wrap items-center gap-1.5" title={`Provider budget for ${b.day}`}>
+      {!b.here_enabled && <span className="whitespace-nowrap rounded border border-amber-300 bg-amber-50 px-1 py-px text-[10px] font-medium text-amber-800">HERE off</span>}
+      {!b.osrm_enabled && <span className="whitespace-nowrap rounded border border-amber-300 bg-amber-50 px-1 py-px text-[10px] font-medium text-amber-800">OSRM off</span>}
+      {b.providers.map((p) => {
+        const bad = p.remaining <= 0 || p.circuit === "open";
+        const warn = !bad && (p.circuit === "half_open" || (p.cap > 0 && p.used / p.cap >= 0.8));
+        const pct = p.cap > 0 ? Math.min(100, (p.used / p.cap) * 100) : 100;
+        const color = bad ? "bg-red-500" : warn ? "bg-amber-500" : "bg-emerald-500";
+        return (
+          <span
+            key={p.provider}
+            className={`inline-flex items-center gap-1 whitespace-nowrap text-[10px] ${bad ? "text-red-700" : "text-neutral-600"}`}
+            title={`${p.provider}: ${p.used} / ${p.cap} used, ${p.remaining} remaining, circuit ${p.circuit}`}
+          >
+            {PROVIDER_LABEL[p.provider] ?? p.provider}
+            <span className="inline-block h-1.5 w-10 overflow-hidden rounded bg-neutral-200">
+              <span className={`block h-full ${color}`} style={{ width: `${pct}%` }} />
+            </span>
+            <span className="font-mono">
+              {p.used}/{p.cap}
+            </span>
+            {p.circuit !== "closed" && <span className={`rounded px-0.5 ${p.circuit === "open" ? "bg-red-100" : "bg-amber-100"}`}>{p.circuit}</span>}
+          </span>
+        );
+      })}
+    </div>
   );
 }
 
@@ -123,7 +141,7 @@ export function TopBar() {
           <span className="whitespace-nowrap text-[11px] text-neutral-500">{date === today ? "today" : date === tomorrow ? "tomorrow" : ""}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <PlanSelector date={date} />
+          <PlanSelector />
         </div>
         <BudgetIndicator />
         <div className="ml-auto flex items-center gap-2">

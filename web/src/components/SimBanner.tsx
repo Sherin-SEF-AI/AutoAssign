@@ -1,27 +1,19 @@
-import { useEffect, useState } from "react";
-import { useSimClock } from "../state/sse";
+import { useSimNow } from "../state/sim";
 import { fmtDateTime, fmtTimeSec } from "../lib/time";
 
-const FRESH_MS = 10_000;
-
-/** Shows while sim.clock events are arriving (one in the last 10 s). */
+/** Persistent simulator banner: shown whenever a simulation exists (SSE sim.clock or the status poll). */
 export function SimBanner() {
-  const clock = useSimClock();
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!clock) return;
-    const h = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(h);
-  }, [clock]);
-  if (!clock || now - clock.receivedAt > FRESH_MS) return null;
+  const sim = useSimNow();
+  if (!sim.exists) return null;
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 bg-violet-700 px-3 py-1 text-xs text-white">
+    <div className={`flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-1 text-xs text-white ${sim.running ? "bg-violet-700" : "bg-neutral-600"}`}>
       <span className="font-semibold">
-        Simulation {clock.running ? "running" : "paused"}: {fmtTimeSec(clock.sim_time)} IST
+        Simulation {sim.running ? "running" : "paused"}: {sim.simMs !== null ? `${fmtTimeSec(sim.simMs)} IST` : "time unknown"}
       </span>
-      <span className="opacity-80">({fmtDateTime(clock.sim_time)})</span>
-      <span className="opacity-80">speed x{clock.speed}</span>
-      {clock.service_date && <span className="opacity-80">service date {clock.service_date}</span>}
+      {sim.simMs !== null && <span className="opacity-80">({fmtDateTime(sim.simMs)})</span>}
+      <span className="opacity-80">speed x{sim.speed}</span>
+      {sim.serviceDate && <span className="opacity-80">service date {sim.serviceDate}</span>}
+      {sim.processAlive === false && <span className="rounded bg-amber-400 px-1 text-[11px] text-neutral-900">sim process not running</span>}
     </div>
   );
 }

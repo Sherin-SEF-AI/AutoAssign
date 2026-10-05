@@ -118,8 +118,8 @@ class Settings(BaseSettings):
     # Solver
     solver_time_limit_s: int = Field(default=60, ge=1)
     incremental_time_limit_s: int = Field(default=20, ge=1)
-    solver_solution_limit: int = Field(default=3000, ge=1)
-    incremental_solution_limit: int = Field(default=1000, ge=1)
+    solver_solution_limit: int = Field(default=200, ge=1)
+    incremental_solution_limit: int = Field(default=100, ge=1)
     drop_penalty_s: int = Field(default=100000, ge=1)
     buffer_fixed_s: int = Field(default=900, ge=0)
     buffer_pct: float = Field(default=0.10, ge=0, le=1)

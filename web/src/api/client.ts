@@ -52,32 +52,6 @@ export async function unwrap<T>(p: FetchResult<T>): Promise<T> {
   return r.data as T;
 }
 
-/**
- * Plain GET for endpoints that are not in the OpenAPI document yet (plans, budget).
- * Same auth and error semantics as the typed client.
- */
-export async function rawGet<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const headers: Record<string, string> = { Accept: "application/json" };
-  const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetch(API_BASE + path, { headers, signal });
-  } catch (e) {
-    throw new ApiError("network_error", e instanceof Error ? e.message : "network request failed", 0);
-  }
-  const text = await res.text();
-  if (!res.ok) {
-    if (res.status === 401) handleUnauthorized();
-    throw toApiError(res.status, text, res.statusText);
-  }
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    throw new ApiError("bad_response", "response was not JSON", res.status);
-  }
-}
-
 /** URL of the SSE stream, with the JWT in the query string (EventSource cannot set headers). */
 export function eventStreamUrl(token: string): string {
   return `${API_BASE}/api/v1/events/stream?token=${encodeURIComponent(token)}`;

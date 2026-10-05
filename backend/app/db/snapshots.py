@@ -145,6 +145,7 @@ async def upsert_soc_checkins(
 ) -> int:
     for c in checkins:
         stmt = insert(SocCheckin).values(id=uuid.uuid4(), source=source, **c.model_dump())
+        # A check-in entered by the driver or ops wins over a later DataSource pull.
         stmt = stmt.on_conflict_do_update(
             constraint="uq_soc_vehicle_date",
             set_={
@@ -154,6 +155,7 @@ async def upsert_soc_checkins(
                 "driver_id": stmt.excluded.driver_id,
                 "source": stmt.excluded.source,
             },
+            where=(SocCheckin.source == "datasource") | (stmt.excluded.source != "datasource"),
         )
         await session.execute(stmt)
     return len(checkins)

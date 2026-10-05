@@ -166,10 +166,15 @@ async def build_graph(
     *,
     quantile: Quantile = "p80",
     edge_overrides: Mapping[tuple[uuid.UUID, uuid.UUID], Edge] | None = None,
+    start_overrides: Mapping[tuple[uuid.UUID, uuid.UUID], HubLeg] | None = None,
+    end_overrides: Mapping[tuple[uuid.UUID, uuid.UUID], HubLeg] | None = None,
+    policy: str | None = None,
 ) -> Graph:
+    """Overrides carry legs stored in a parent plan, keyed by trip ids and (driver, trip) ids.
+    They are always kept as edges so a parent plan's routes can seed an incremental solve."""
     started = time.perf_counter()
     day0 = day_start_utc(service_date)
-    policy = "quantile" if estimator.factors.calibrated else "fixed"
+    policy = policy or ("quantile" if estimator.factors.calibrated else "fixed")
     graph = Graph(service_date=service_date, nodes=nodes, vehicles=vehicles, buffer_policy=policy)
     overrides = dict(edge_overrides or {})
     max_dh_m = settings.max_deadhead_km * 1000
@@ -186,6 +191,12 @@ async def build_graph(
             if haversine_m(a.drop, b.pickup) > max_dh_m:
                 continue
             candidates.append((i, j))
+    index = {nd.trip_id: k for k, nd in enumerate(nodes)}
+    forced: set[tuple[int, int]] = set()
+    for a_id, b_id in overrides:
+        if a_id in index and b_id in index:
+            forced.add((index[a_id], index[b_id]))
+    candidates += sorted(forced - set(candidates))
     need = [(i, j) for i, j in candidates if (nodes[i].trip_id, nodes[j].trip_id) not in overrides]
     dh = await estimator.estimate_many(
         [
@@ -218,7 +229,7 @@ async def build_graph(
             )
             dh_q = p90 if quantile == "p90" else p80
             edge = Edge(p50, dh_q, p90, m, e.source, buf)
-        if a.pickup_s + edge.transit_s(a) <= b.pickup_s:
+        if a.pickup_s + edge.transit_s(a) <= b.pickup_s or (i, j) in forced:
             graph.edges[(i, j)] = edge
         else:
             rejected += 1
@@ -227,13 +238,25 @@ async def build_graph(
     ff = free_flow_kmh(settings.speed_profile_json) / 3.6
     start_req: list[tuple[int, int]] = []
     end_req: list[tuple[int, int]] = []
+    s_over = dict(start_overrides or {})
+    e_over = dict(end_overrides or {})
     for v_idx, v in enumerate(vehicles):
         for n_idx, n in enumerate(nodes):
+            if (v.driver_id, n.trip_id) in s_over:
+                graph.start_legs[(v_idx, n_idx)] = s_over[(v.driver_id, n.trip_id)]
+            if (n.trip_id, v.driver_id) in e_over:
+                graph.end_legs[(n_idx, v_idx)] = e_over[(n.trip_id, v.driver_id)]
             if not v.eligible(n) or n.end_s > v.shift_end_s:
                 continue
-            if v.origin_s + haversine_m(v.origin, n.pickup) / ff <= n.pickup_s:
+            if (v_idx, n_idx) not in graph.start_legs and v.origin_s + haversine_m(
+                v.origin, n.pickup
+            ) / ff <= n.pickup_s:
                 start_req.append((v_idx, n_idx))
-            if n.end_s + haversine_m(n.drop, v.end) / ff <= v.shift_end_s and n.pickup_s >= v.origin_s:
+            if (
+                (n_idx, v_idx) not in graph.end_legs
+                and n.end_s + haversine_m(n.drop, v.end) / ff <= v.shift_end_s
+                and n.pickup_s >= v.origin_s
+            ):
                 end_req.append((n_idx, v_idx))
     starts = await estimator.estimate_many(
         [

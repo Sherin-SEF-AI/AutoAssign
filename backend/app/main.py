@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
 from app.api import problem
-from app.api.routers import admin, auth, drivers, events, health, jobs, trips, vehicles
+from app.api.routers import admin, auth, drivers, events, health, jobs, map, ops, plans, trips, vehicles
 from app.api.routers import settings as settings_router
 from app.api.security import ensure_admin
 from app.config import Settings, get_settings
@@ -103,7 +103,7 @@ def create_app(settings: Settings | None = None, ctx: AppContext | None = None) 
             return response
 
     api = APIRouter(prefix=API_PREFIX, responses=problem.PROBLEM_RESPONSES)
-    for module in (auth, trips, drivers, vehicles, jobs, admin, events, settings_router):
+    for module in (auth, trips, drivers, vehicles, jobs, admin, events, settings_router, plans, map, ops):
         api.include_router(module.router)
     app.include_router(api)
     app.include_router(health.router)

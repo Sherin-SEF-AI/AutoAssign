@@ -20,14 +20,17 @@ export class ApiError extends Error {
   readonly detail: string;
   readonly status: number;
   readonly errors: FieldError[];
+  /** Any extra problem members, e.g. trip_ids on unassigned_not_acknowledged. */
+  readonly extra: Record<string, unknown>;
 
-  constructor(code: string, detail: string, status: number, errors: FieldError[] = []) {
+  constructor(code: string, detail: string, status: number, errors: FieldError[] = [], extra: Record<string, unknown> = {}) {
     super(`${code}: ${detail}`);
     this.name = "ApiError";
     this.code = code;
     this.detail = detail;
     this.status = status;
     this.errors = errors;
+    this.extra = extra;
   }
 
   /** Message for a given form field, matching "soc_pct" or a dotted suffix like "body.soc_pct". */
@@ -79,7 +82,9 @@ export function toApiError(status: number, body: unknown, statusText = ""): ApiE
     else if (typeof p.title === "string") detail = p.title;
     else if (errors.length) detail = "request validation failed";
     else detail = statusText || "request failed";
-    return new ApiError(code, detail, typeof p.status === "number" ? p.status : status, errors);
+    const known = new Set(["type", "title", "status", "code", "detail", "instance", "errors"]);
+    const extra = Object.fromEntries(Object.entries(body).filter(([k]) => !known.has(k)));
+    return new ApiError(code, detail, typeof p.status === "number" ? p.status : status, errors, extra);
   }
   return new ApiError(codeForStatus(status), statusText || "request failed", status);
 }

@@ -88,15 +88,19 @@ export function handleEvent(qc: QueryClient, name: string, data: unknown): void 
     void qc.invalidateQueries({ queryKey: ["plan"] });
     void qc.invalidateQueries({ queryKey: ["trips"] });
     void qc.invalidateQueries({ queryKey: ["fleet", "drivers"] });
+    void qc.invalidateQueries({ queryKey: ["repairs"] });
     return;
   }
   switch (name) {
     case "monitor.tick":
       void qc.invalidateQueries({ queryKey: ["live"] });
+      void qc.invalidateQueries({ queryKey: ["repairs"] });
       return;
     case "job.finished":
       void qc.invalidateQueries({ queryKey: ["jobs"] });
       void qc.invalidateQueries({ queryKey: ["snapshots"] });
+      void qc.invalidateQueries({ queryKey: ["estimates"] });
+      void qc.invalidateQueries({ queryKey: ["budget"] });
       return;
     case "data.regenerated":
       void qc.invalidateQueries();
