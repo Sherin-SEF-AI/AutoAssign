@@ -43,7 +43,11 @@ sim-stop:
 	$(COMPOSE) --profile sim stop sim
 
 replay:
-	$(PY) -m app.cli replay --days $(DAYS) $(if $(filter 1,$(LOCAL)),--out ../docs,--out /app/reports)
+ifeq ($(LOCAL),1)
+	$(PY) -m app.cli replay --days $(DAYS) --out ../docs
+else
+	$(COMPOSE) run --rm --user root worker python -m app.cli replay --days $(DAYS) --out /app/reports
+endif
 
 venv:
 	cd backend && uv venv -p 3.12 .venv && uv pip install -p .venv -e ".[dev]"
